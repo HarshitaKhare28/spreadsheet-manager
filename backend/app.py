@@ -169,9 +169,6 @@ def query_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-def create_app():
-    """Factory function to create the Flask application."""
-    return app
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=8000)
