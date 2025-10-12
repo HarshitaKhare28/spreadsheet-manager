@@ -1,10 +1,14 @@
 import { useState } from "react";
 import axios from "axios";
+import ResultTable from "./Components/ResultTable";
 
 function App() {
   const [file, setFile] = useState(null);
   const [info, setInfo] = useState(null);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [response, setResponse] = useState(null);
+  const [loadingQuery, setLoadingQuery] = useState(false);
 
   const handleUpload = async () => {
     if (!file) {
@@ -21,49 +25,101 @@ function App() {
       });
       setInfo(res.data);
       setError("");
+      setResponse(null);
     } catch (err) {
       console.error(err);
       setError("Upload failed. Check if backend is running.");
     }
   };
 
+  const handleQuery = async () => {
+    if (!query) return;
+    setLoadingQuery(true);
+    try {
+      const res = await axios.post("http://127.0.0.1:5000/query", { query });
+      setResponse(res.data);
+    } catch (err) {
+      console.error(err);
+      setError("Query failed. Check backend or try again.");
+    }
+    setLoadingQuery(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8">
-      <div className="bg-white rounded-2xl shadow-md p-8 w-full max-w-lg">
-        <h1 className="text-3xl font-bold text-center text-blue-600 mb-6">
-          📊 Spreadsheet Manager LLM
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 text-gray-100 p-6 font-sans">
+      <div className="max-w-7xl mx-auto">
+
+        {/* Header */}
+        <h1 className="text-5xl font-extrabold text-center py-3 bg-clip-text text-white mb-16 drop-shadow-lg">
+           Spreadsheet Manager
         </h1>
 
-        <div className="flex flex-col gap-4 items-center">
+        {/* Upload Section (Form pushed down with mb-16 for spacing) */}
+        <div className="bg-gray-800/80 backdrop-blur-md rounded-3xl shadow-2xl p-6 py-4 mb-8 flex flex-col md:flex-row gap-6 items-center transition hover:shadow-purple-500/50">
           <input
             type="file"
             accept=".xlsx,.csv"
             onChange={(e) => setFile(e.target.files[0])}
-            className="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="block w-full md:w-2/3 text-sm text-gray-200 border border-gray-600 rounded-lg cursor-pointer bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 p-3"
           />
           <button
             onClick={handleUpload}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition"
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-8 rounded-2xl shadow-lg transition"
           >
             Upload
           </button>
         </div>
 
         {error && (
-          <p className="text-red-500 text-center mt-4">{error}</p>
+          <p className="text-red-400 text-center mb-6 font-medium animate-pulse">
+            {error}
+          </p>
         )}
 
+        {/* File Info & Query */}
         {info && (
-          <div className="mt-6 text-center">
-            <h3 className="text-lg font-semibold mb-2 text-gray-700">
+          <div className="bg-gray-800/80 backdrop-blur-md rounded-3xl shadow-2xl p-6 mb-8 transition hover:shadow-purple-500/50">
+            <h2 className="text-2xl font-bold mb-4 text-pink-400">
               File Info
-            </h3>
-            <p className="text-gray-600">
+            </h2>
+            <p className="mb-2 text-gray-200">
               <b>Columns:</b> {info.columns.join(", ")}
             </p>
-            <p className="text-gray-600">
+            <p className="mb-4 text-gray-200">
               <b>Total Rows:</b> {info.rows}
             </p>
+
+            {/* Query Section */}
+            <div className="flex flex-col md:flex-row gap-4 mb-4">
+              <input
+                type="text"
+                placeholder="Ask a question..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="border border-gray-600 rounded-xl p-3 flex-1 bg-gray-700 text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition"
+              />
+              <button
+                onClick={handleQuery}
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-gray-900 font-semibold py-3 px-6 rounded-xl shadow-lg transition"
+                disabled={loadingQuery}
+              >
+                {loadingQuery ? "Processing..." : "Ask"}
+              </button>
+            </div>
+
+            {/* Query Response */}
+            {response && (
+              <div className="mt-6 bg-gray-700/70 backdrop-blur-md p-5 rounded-2xl shadow-inner transition hover:shadow-pink-400/30">
+                <p className="text-lg font-semibold mb-4 text-pink-300">
+                  <b>Answer:</b> {response.answer}
+                </p>
+                {response.details && (
+                  <div className="overflow-x-auto">
+                    <ResultTable data={response.details} dark />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
