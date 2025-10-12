@@ -21,12 +21,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install dependencies into backend folder
+        working-directory: ./backend
         run: |
-          cd backend
-          python -m venv venv
-          source venv/bin/activate
-          pip install -r requirements.txt
+          pip install -r requirements.txt -t .
+
+      - name: Remove junk files before deploy
+        working-directory: ./backend
+        run: |
+          rm -rf __pycache__ venv || true
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -41,4 +44,4 @@ jobs:
         with:
           app-name: 'spreadsheet-manager'
           slot-name: 'Production'
-          package: backend  # Deploy directly from backend folder
+          package: '${{ github.workspace }}/backend'
