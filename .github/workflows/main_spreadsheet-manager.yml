@@ -22,20 +22,16 @@ jobs:
 
       - name: Create and start virtual environment
         run: |
-          cd spreadsheet-manager-llm/backend    # go inside your backend folder
+          cd backend
           python -m venv venv
           source venv/bin/activate
-
-      - name: Install dependencies
-        run: |
-          cd spreadsheet-manager-llm/backend    # same here
           pip install -r requirements.txt
 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: spreadsheet-manager-llm/backend  # upload from backend folder
+          path: backend  # Upload only backend folder for deployment
 
   deploy:
     runs-on: ubuntu-latest
@@ -63,4 +59,4 @@ jobs:
         with:
           app-name: 'spreadsheet-manager'
           slot-name: 'Production'
-          package: ./spreadsheet-manager-llm/backend  # tell Azure where to find your app
+          package: ./backend  # Deploy from backend folder
