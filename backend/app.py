@@ -70,6 +70,108 @@ def upload_file():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/dashboard', methods=['POST'])
+def generate_dashboard():
+    """Generate dashboard analytics for the uploaded file."""
+    try:
+        df, path = load_current_file()
+        if df is None:
+            return jsonify({"error": "No uploaded file found"}), 400
+        
+        print(f"Loading file: {path}")
+        print(f"DataFrame shape: {df.shape}")
+        
+        numeric_cols = df.select_dtypes(include='number').columns.tolist()
+        categorical_cols = df.select_dtypes(exclude='number').columns.tolist()
+        
+        print(f"Numeric columns: {numeric_cols}")
+        print(f"Categorical columns: {categorical_cols}")
+        
+        # Basic summary
+        dashboard = {
+            "summary": {
+                "total_rows": len(df),
+                "total_columns": len(df.columns),
+                "numeric_columns": len(numeric_cols),
+                "categorical_columns": len(categorical_cols),
+                "file_name": os.path.basename(path) if path else "Unknown"
+            },
+            "numeric_stats": {},
+            "charts": []
+        }
+        
+        # Generate statistics for numeric columns (max 5)
+        for col in numeric_cols[:5]:
+            col_data = df[col].dropna()
+            if len(col_data) > 0:
+                dashboard["numeric_stats"][col] = {
+                    "min": float(col_data.min()),
+                    "max": float(col_data.max()),
+                    "mean": float(col_data.mean()),
+                    "median": float(col_data.median()),
+                    "sum": float(col_data.sum()),
+                    "std": float(col_data.std()) if len(col_data) > 1 else 0
+                }
+        
+        # Generate chart data for categorical columns (max 3)
+        for col in categorical_cols[:3]:
+            # Convert to string to handle datetime and other special types
+            col_data = df[col].astype(str)
+            value_counts = col_data.value_counts().head(10)
+            if len(value_counts) > 0:
+                dashboard["charts"].append({
+                    "type": "bar",
+                    "title": f"Distribution of {col}",
+                    "column": col,
+                    "labels": [str(x) for x in value_counts.index.tolist()],
+                    "data": value_counts.values.tolist()
+                })
+        
+        # Generate trend chart for first numeric column if exists
+        if len(numeric_cols) > 0:
+            first_num_col = numeric_cols[0]
+            # Take first 50 rows for trend
+            trend_data = df[first_num_col].head(50).tolist()
+            dashboard["charts"].append({
+                "type": "line",
+                "title": f"Trend of {first_num_col}",
+                "column": first_num_col,
+                "labels": list(range(1, len(trend_data) + 1)),
+                "data": trend_data
+            })
+        
+        # Add pie chart for first categorical column
+        if len(categorical_cols) > 0:
+            first_cat_col = categorical_cols[0]
+            # Convert to string to handle datetime and other special types
+            col_data = df[first_cat_col].astype(str)
+            value_counts = col_data.value_counts().head(5)
+            if len(value_counts) > 0:
+                dashboard["charts"].append({
+                    "type": "pie",
+                    "title": f"Composition of {first_cat_col}",
+                    "column": first_cat_col,
+                    "labels": [str(x) for x in value_counts.index.tolist()],
+                    "data": value_counts.values.tolist()
+                })
+        
+        # Add data preview - convert to string to handle NaT and other types
+        preview_df = df.head(10).copy()
+        # Convert all columns to string to avoid serialization issues
+        for col in preview_df.columns:
+            preview_df[col] = preview_df[col].astype(str)
+        dashboard["preview"] = preview_df.to_dict(orient='records')
+        
+        print("Dashboard generated successfully")
+        return jsonify(dashboard)
+    
+    except Exception as e:
+        print(f"Error generating dashboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/query', methods=['POST'])
 def query_data():
     """Smart query handling with enhanced rule-based system."""
