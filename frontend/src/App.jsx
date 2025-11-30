@@ -1,14 +1,18 @@
 import { useState } from "react";
 import axios from "axios";
 import ResultTable from "./Components/ResultTable";
+import Dashboard from "./Components/Dashboard";
 
 function App() {
   const [file, setFile] = useState(null);
   const [info, setInfo] = useState(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  const [responses, setResponses] = useState([]); // Changed to array for multiple Q&A
+  const [responses, setResponses] = useState([]);
   const [loadingQuery, setLoadingQuery] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [viewMode, setViewMode] = useState("dashboard"); // "dashboard" or "query"
 
   const handleUpload = async () => {
     if (!file) {
@@ -25,11 +29,27 @@ function App() {
       });
       setInfo(res.data);
       setError("");
-      setResponses([]); // Clear previous responses when new file uploaded
+      setResponses([]);
+      
+      // Auto-generate dashboard
+      await generateDashboard();
     } catch (err) {
       console.error(err);
       setError("Upload failed. Check if backend is running.");
     }
+  };
+
+  const generateDashboard = async () => {
+    setLoadingDashboard(true);
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/dashboard");
+      setDashboardData(res.data);
+      setViewMode("dashboard");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to generate dashboard.");
+    }
+    setLoadingDashboard(false);
   };
 
   const handleQuery = async () => {
@@ -37,9 +57,8 @@ function App() {
     setLoadingQuery(true);
     try {
       const res = await axios.post("http://127.0.0.1:8000/query", { query });
-      // Add new response to the beginning of the array
       setResponses([{ question: query, ...res.data }, ...responses]);
-      setQuery(""); // Clear input after asking
+      setQuery("");
     } catch (err) {
       console.error(err);
       setError("Query failed. Check backend or try again.");
@@ -84,56 +103,109 @@ function App() {
           </p>
         )}
 
-        {/* File Info & Query */}
+        {/* File Info & View Toggle */}
         {info && (
-          <div className="bg-gray-800/80 backdrop-blur-md rounded-3xl shadow-2xl p-6 mb-8 transition hover:shadow-purple-500/50">
-            <h2 className="text-2xl font-bold mb-4 text-pink-400">
-              File Info
-            </h2>
-            <p className="mb-2 text-gray-200">
-              <b>Columns:</b> {info.columns.join(", ")}
-            </p>
-            <p className="mb-4 text-gray-200">
-              <b>Total Rows:</b> {info.rows}
-            </p>
-
-            {/* Query Section */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <input
-                type="text"
-                placeholder="Ask a question... (Press Enter to submit)"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="border border-gray-600 rounded-xl p-3 flex-1 bg-gray-700 text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition"
-              />
+          <div className="space-y-6">
+            {/* View Mode Toggle */}
+            <div className="flex justify-center gap-4">
               <button
-                onClick={handleQuery}
-                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-gray-900 font-semibold py-3 px-6 rounded-xl shadow-lg transition"
-                disabled={loadingQuery}
+                onClick={() => setViewMode("dashboard")}
+                className={`py-3 px-8 rounded-xl font-semibold transition ${
+                  viewMode === "dashboard"
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
               >
-                {loadingQuery ? "Processing..." : "Ask"}
+                📊 Dashboard
+              </button>
+              <button
+                onClick={() => setViewMode("query")}
+                className={`py-3 px-8 rounded-xl font-semibold transition ${
+                  viewMode === "query"
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                💬 Ask Questions
               </button>
             </div>
 
-            {/* All Query Responses (Chat-like history) */}
-            {responses.length > 0 && (
-              <div className="mt-6 space-y-4 max-h-[500px] overflow-y-auto">
-                {responses.map((resp, idx) => (
-                  <div key={idx} className="bg-gray-700/70 backdrop-blur-md p-5 rounded-2xl shadow-inner transition hover:shadow-pink-400/30">
-                    <p className="text-md font-medium mb-2 text-gray-300">
-                      <b>Q:</b> {resp.question}
+            {/* Dashboard View */}
+            {viewMode === "dashboard" && (
+              <div>
+                {loadingDashboard ? (
+                  <div className="text-center py-20">
+                    <p className="text-2xl text-purple-300 animate-pulse">
+                      🔄 Generating dashboard...
                     </p>
-                    <p className="text-lg font-semibold mb-4 text-pink-300">
-                      <b>A:</b> {resp.answer}
-                    </p>
-                    {resp.details && (
-                      <div className="overflow-x-auto">
-                        <ResultTable data={resp.details} dark />
-                      </div>
-                    )}
                   </div>
-                ))}
+                ) : dashboardData ? (
+                  <Dashboard data={dashboardData} />
+                ) : (
+                  <div className="text-center py-20">
+                    <p className="text-xl text-gray-400">
+                      Dashboard not available. Please try uploading again.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Query View */}
+            {viewMode === "query" && (
+              <div className="bg-gray-800/80 backdrop-blur-md rounded-3xl shadow-2xl p-6 transition hover:shadow-purple-500/50">
+                <h2 className="text-2xl font-bold mb-4 text-pink-400">
+                  File Info
+                </h2>
+                <p className="mb-2 text-gray-200">
+                  <b>Columns:</b> {info.columns.join(", ")}
+                </p>
+                <p className="mb-4 text-gray-200">
+                  <b>Total Rows:</b> {info.rows}
+                </p>
+
+                {/* Query Section */}
+                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                  <input
+                    type="text"
+                    placeholder="Ask a question... (Press Enter to submit)"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    className="border border-gray-600 rounded-xl p-3 flex-1 bg-gray-700 text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition"
+                  />
+                  <button
+                    onClick={handleQuery}
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-gray-900 font-semibold py-3 px-6 rounded-xl shadow-lg transition"
+                    disabled={loadingQuery}
+                  >
+                    {loadingQuery ? "Processing..." : "Ask"}
+                  </button>
+                </div>
+
+                {/* All Query Responses (Chat-like history) */}
+                {responses.length > 0 && (
+                  <div className="mt-6 space-y-4 max-h-[500px] overflow-y-auto">
+                    {responses.map((resp, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-gray-700/70 backdrop-blur-md p-5 rounded-2xl shadow-inner transition hover:shadow-pink-400/30"
+                      >
+                        <p className="text-md font-medium mb-2 text-gray-300">
+                          <b>Q:</b> {resp.question}
+                        </p>
+                        <p className="text-lg font-semibold mb-4 text-pink-300">
+                          <b>A:</b> {resp.answer}
+                        </p>
+                        {resp.details && (
+                          <div className="overflow-x-auto">
+                            <ResultTable data={resp.details} dark />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
