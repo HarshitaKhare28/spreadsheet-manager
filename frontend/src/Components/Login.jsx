@@ -133,5 +133,4 @@ function Login({ onSwitchToRegister }) {
     </div>
   );
 }
-
 export default Login;

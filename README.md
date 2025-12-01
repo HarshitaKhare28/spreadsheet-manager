@@ -12,10 +12,8 @@ An intelligent spreadsheet analytics platform with **Google OAuth**, natural lan
 - 📈 **Statistics** - sum, average, min, max, median for all columns
 
 ## 🚀 Tech Stack
-
 **Backend:** Python 3.12, Flask, MongoDB, PyJWT, Google OAuth 2.0, Pandas, ReportLab  
 **Frontend:** React 19, Vite, Tailwind CSS v4, Chart.js, @react-oauth/google
-
 ## 📋 Quick Start
 
 ### Prerequisites
